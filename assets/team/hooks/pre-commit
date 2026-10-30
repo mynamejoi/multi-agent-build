@@ -1,0 +1,30 @@
+#!/bin/bash
+# Refuses a commit that touches a path its agent doesn't own (owners.txt), then runs the privacy gate
+# (gate.py) on what's staged. Agents commit through commit.sh, which sets TEAM_AGENT.
+# The owner commits anything with: TEAM_AGENT=owner git commit ...
+here="$(cd "$(dirname "$0")/.." && pwd -P)"
+owner="$(git config --get team.owner)"; owner="${owner:-the owner}"
+agent="$TEAM_AGENT"
+if [ -z "$agent" ]; then
+  echo "Commit refused: agents commit with $(basename "$here")/commit.sh <agent> \"what changed\". $owner: TEAM_AGENT=owner git commit ..." >&2
+  exit 1
+fi
+if [ "$agent" != "owner" ]; then
+  owned=$(awk -v a="$agent" '!/^#/ && $1 == a { print $2 }' "$here/owners.txt")
+  [ -n "$owned" ] || { echo "Commit refused: '$agent' isn't an agent in owners.txt." >&2; exit 1; }
+  bad=0
+  while IFS= read -r -d '' f; do
+    ok=0
+    while IFS= read -r p; do
+      case "$p" in
+        */) case "$f" in "$p"*) ok=1 ;; esac ;;
+        *) [ "$f" = "$p" ] && ok=1 ;;
+      esac
+      [ "$ok" = 1 ] && break
+    done <<< "$owned"
+    if [ "$ok" = 0 ]; then echo "Commit refused: $f isn't $agent's to commit (owners.txt)." >&2; bad=1; fi
+  done < <(git diff --cached --name-only -z --no-renames)
+  [ "$bad" = 0 ] || exit 1
+fi
+command -v python3 >/dev/null || { echo "Commit refused: python3 isn't installed, so the privacy gate can't run." >&2; exit 1; }
+exec python3 "$here/gate.py"

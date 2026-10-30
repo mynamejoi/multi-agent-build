@@ -1,0 +1,6 @@
+#!/bin/bash
+# Only the owner pushes: TEAM_AGENT=owner git push ...
+[ "$TEAM_AGENT" = "owner" ] && exit 0
+owner="$(git config --get team.owner)"
+echo "Push refused: only ${owner:-the owner} pushes (TEAM_AGENT=owner git push ...)." >&2
+exit 1
