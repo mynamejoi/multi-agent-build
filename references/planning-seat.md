@@ -17,7 +17,7 @@ The planning conversation is the owner's desk. It keeps the plan, turns the owne
 1. **Split it into numbered notes, in the owner's words.** Keep their phrasing for anything that sets a direction ("make the check-in more prominent"). Where a note is unclear, make the reasonable reading, write it down as yours, and keep going; ask only when the choice is reserved for the owner (below).
 2. **Find each note's owner.** Usually one agent. When a note spans two, name a lead and the order ("the server's field first, then the screen").
 3. **Write one entry at the top of the plan's Decisions**, timed from the clock: the notes, who does what, the order, and what done means for each, written as a check someone can run. This is the one place every agent reads, so a decision written here reaches all of them, now and after their context is summarized.
-4. **Commit it** with `<dir>/commit.sh planning "what changed"`. The gate runs. If it flags someone else's uncommitted file, that's theirs to fix: tell them, and commit yours anyway (the script commits only your files).
+4. **Commit it** with `<dir>/commit.sh planning "what changed"`. The gate checks your files and your message, and only yours.
 5. **Send each agent involved one short message**: which entry, which notes are theirs, the order, and the proof you expect back. One message per agent per batch, because sends are limited (below).
 6. **Wait for their reports.** Don't poll; an agent's message wakes you. Then check each claim (next section) and send back anything that doesn't hold.
 7. **Never put the owner's own content in the repo or in a brief.** Agents reproduce a problem with made-up people and data. Describe the bug, not the owner's goal, email or calendar.
@@ -31,6 +31,8 @@ A teammate's report is a claim, not proof. Before you tell the owner something w
 - **Use the real thing.** Mock-based tests miss what only the real server, real data shapes or real screen sizes show. In the first build, a front end that passed every mocked test had seven bugs that appeared only against the real server.
 - **Look at screenshots** for anything on screen, at the sizes the owner uses.
 - **Write down what wasn't exercised**: no real device, sound not heard, a path that needs the owner's account. Say it to the owner in the same breath as what passed.
+
+The checks agent sends you each stage's note. Check it like any other claim, then bring it to the owner with your recommended answers, so the owner hears from one conversation.
 
 ## Handing the owner a build
 
@@ -70,10 +72,10 @@ When the owner wants the agents kept moving while they're away, run this with `/
 
 Every conversation spends from the same plan. Five at high effort can use a week's allowance in days.
 
-- Check usage before a round of live model calls, a big test sweep or a blind-scoring round.
-- Put a guard in the plan, for example "no live model runs past 80% of the weekly limit without the owner's word".
+- Check usage (`/usage`, or the app's usage view) before a round of live model calls, a big test sweep or a blind-scoring round.
+- Keep the guard in the plan's hard rule 7, for example "no live model runs past 80% of the weekly limit without the owner's word".
 - Settle a question with the fewest runs that settle it: one judge per decision, not a panel.
 
 ## What stays the owner's
 
-Publishing, pushing, sending anything as the owner, spending money, permission modes, accounts and data sources, background services that start at login, and anything the plan's hard rules reserve. Ask with your recommended answer, put it under "For [owner]" in the plan, and keep everything else moving meanwhile.
+Everything in the plan's hard rule 1: publishing, pushing, sending anything as the owner, spending money, new accounts, data sources or services that start at login, and permission settings. The project's own rules in hard rule 7 may add more. Ask with your recommended answer, put the question under "For the owner" in the plan, and keep everything else moving meanwhile.

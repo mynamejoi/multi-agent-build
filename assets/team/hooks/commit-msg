@@ -1,0 +1,5 @@
+#!/bin/bash
+# Runs the privacy gate (gate.py) on the commit message, so no private term reaches the history that way.
+here="$(cd "$(dirname "$0")/.." && pwd -P)"
+command -v python3 >/dev/null || { echo "Commit refused: python3 isn't installed, so the privacy gate can't run." >&2; exit 1; }
+exec python3 "$here/gate.py" --message "$1"

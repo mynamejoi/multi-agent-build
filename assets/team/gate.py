@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""The privacy gate. Refuses a commit whose files carry a private term, a secret, or a file kind that stays out of git.
+"""The privacy gate. Refuses a commit whose files or message carry a private term, a secret, or a file kind that stays
+out of git.
 
 Private terms (people's names, the owner's email or street, a client's name) live only as salted one-way fingerprints
 in a file outside the repo (git config team.gate; the scaffold makes it), so the repo never names them and a finding
-shows only its file, line and kind. A line marked privacy-ok, with its why, is left out.
+shows only its file, line and kind. Terms match as whole words in order and in any case, so add each form on its own:
+the full name, the surname, the email and the part before its @. A line marked privacy-ok, with its why, is left out
+whole, so keep the mark for made-up test data.
 
-    python3 team/gate.py                                      # the staged files (the pre-commit hook runs this)
-    python3 team/gate.py --all                                # every tracked file
-    python3 team/gate.py add "Jane Doe" --kind "a person's name"
+    python3 team/gate.py                                    # the staged files (the pre-commit hook runs this)
+    python3 team/gate.py --all                              # every file in the repo that git doesn't ignore
+    python3 team/gate.py --message FILE                     # a commit message (the commit-msg hook runs this)
+    python3 team/gate.py add "First Last" --kind "a person's name"
 """
 import argparse
 import fnmatch
@@ -41,18 +45,21 @@ def git(*args: str) -> bytes:
 
 
 def top() -> pathlib.Path:
-    return pathlib.Path(git("rev-parse", "--show-toplevel").decode().strip())
+    return pathlib.Path(git("rev-parse", "--show-toplevel").decode().strip()).resolve()
 
 
 def config_path() -> pathlib.Path:
+    """git config team.gate, else where the scaffold puts it for this repo."""
     try:
         set_to = git("config", "--get", "team.gate").decode().strip()
-    except subprocess.CalledProcessError:  # not set
+    except subprocess.CalledProcessError:  # not set, as in a fresh clone
         set_to = ""
     if set_to:
         return pathlib.Path(os.path.expanduser(set_to))
-    name = re.sub(r"[^a-z0-9]+", "-", top().name.lower()).strip("-") or "project"
-    return pathlib.Path.home() / ".config" / "agent-team" / name / "gate.json"
+    repo = top()
+    base = pathlib.Path(os.environ.get("AGENT_TEAM_CONFIG", pathlib.Path.home() / ".config" / "agent-team"))
+    name = re.sub(r"[^a-z0-9]+", "-", repo.name.lower()).strip("-") or "project"
+    return base / f"{name}-{hashlib.sha1(str(repo).encode()).hexdigest()[:6]}" / "gate.json"
 
 
 def load(path: pathlib.Path) -> dict:
@@ -80,8 +87,9 @@ def staged() -> dict:
     return {n: git("show", f":{n}") for n in names}
 
 
-def tracked() -> dict:
-    names = [n for n in git("ls-files", "-z").decode().split("\0") if n]
+def repo_files() -> dict:
+    """Every file git tracks or would add: committed, staged or new, but not ignored."""
+    names = sorted({n for n in git("ls-files", "-z", "--cached", "--others", "--exclude-standard").decode().split("\0") if n})
     return {n: pathlib.Path(n).read_bytes() for n in names if pathlib.Path(n).is_file()}
 
 
@@ -144,16 +152,27 @@ def main(argv: list[str]) -> int:
     if argv[:1] in (["-h"], ["--help"]):
         print(__doc__)
         return 0
+    message = argv[1] if argv[:1] == ["--message"] and len(argv) > 1 else None
+    if message:
+        message = pathlib.Path(message).resolve()  # before the move to the top folder
     os.chdir(top())
     path = config_path()
     whole = "--all" in argv
-    if whole and not path.exists():
-        print(f"note: no private terms set up yet ({path}); checking secrets and file kinds only.", file=sys.stderr)
-    found = findings(tracked() if whole else staged(), load(path))
+    if not path.exists() and (whole or not message):
+        print(f"note: no private terms for this repo yet ({path}); checking secrets and file kinds only.", file=sys.stderr)
+    if message:
+        text = "\n".join(line for line in message.read_text(errors="replace").splitlines() if not line.startswith("#"))
+        files = {"the commit message": text.encode()}
+    else:
+        files = repo_files() if whole else staged()
+    found = findings(files, load(path))
     if not found:
+        if whole:
+            print(f"Checked {len(files)} files: nothing private found.")
         return 0
     print(f"{'Found' if whole else 'Commit refused:'} {len(found)} place{'s' * (len(found) > 1)} carrying something "
-          "private (gate.py). Take it out, or mark an intended mention privacy-ok with its why:", file=sys.stderr)
+          "private (gate.py). Take it out, or mark an intended mention of made-up data privacy-ok with its why:",
+          file=sys.stderr)
     for f in found[:40]:
         print(f"  {f}", file=sys.stderr)
     if len(found) > 40:
