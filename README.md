@@ -177,3 +177,7 @@ From the [official docs](https://code.claude.com/docs/en/cross-session-messaging
 ```bash
 bash tests/test_kit.sh
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
